@@ -36,7 +36,6 @@ namespace Parser
             try
             {
                 this.originTb.Text = "";
-                this.resultTb.Text = "";
                 this.allLinesList = new List<VoucherRow>();
             }
             catch (Exception)
@@ -50,7 +49,7 @@ namespace Parser
             try
             {
                 OpenFileDialog openFileDialog = new OpenFileDialog();
-                openFileDialog.Filter = "Csv files (*.csv)|*.csv";
+                openFileDialog.Filter = "Csv súbor (*.csv)|*.csv";
                 if (openFileDialog.ShowDialog() == true)
                 {
                     string fileName = openFileDialog.FileName;
@@ -60,38 +59,41 @@ namespace Parser
                     this.dupliciteVouchersDictionary = readCsvFile.DupliciteVouchersDictionary;
                     this.dupliciteLines = readCsvFile.DupliciteLines;
 
-                    originTb.Text = $"Number or lines of original document: {readCsvFile.AllLines.Count} \nNumber or duplicite voucher codes (unique): {readCsvFile.DupliciteVouchersDictionary.Count}\n";
-                    string parseResult = $"Duplicite lines:\nVoucher code | Amount \n";
+                    originTb.Text = $"Počet riadkov v dokumente: {readCsvFile.AllLines.Count} \nPočet nájdených duplicitných kódov fliaš (unikátnych): {readCsvFile.DupliciteVouchersDictionary.Count}\n";
+                    List<ResultInfoDataGridLine> resultInfoList = new List<ResultInfoDataGridLine>();
 
                     int counter = 1;
                     string cacheCode = "";
                     for (int i = 0; i < this.dupliciteLines.Count; i++)
                     {
+                        ResultInfoDataGridLine dgLine = new ResultInfoDataGridLine();
+
                         if (cacheCode != this.dupliciteLines[i].voucher_code && cacheCode != "")
                         {
                             counter++;
                         }
-                        parseResult += $"{counter}. {this.dupliciteLines[i].voucher_code}  {this.dupliciteLines[i].voucher_amount}";
-
+                        dgLine.voucherCode = this.dupliciteLines[i].voucher_code;
+                        dgLine.ammount = Math.Truncate(double.Parse(this.dupliciteLines[i].voucher_amount, System.Globalization.CultureInfo.InvariantCulture) * 100) / 100;
+                        dgLine.number = counter;
                         if (this.dupliciteVouchersDictionary.ContainsKey(this.dupliciteLines[i].voucher_code))
                         {
                             List<VoucherRow> lines = this.dupliciteVouchersDictionary[this.dupliciteLines[i].voucher_code];
                             if (this.AreLinesFraud(lines))
                             {
-                                parseResult += " (Potential fraud!)\n";
-                            }
-                            else
-                            {
-                                parseResult += "\n";
+                                dgLine.potentialFraud = "Upozornenie!";
                             }
                         }
 
+                        resultInfoList.Add(dgLine);
                         cacheCode = this.dupliciteLines[i].voucher_code;
                     }
 
-                    parseResult += "\n\n Click save to export corrected file!";
-                    resultTb.Text = parseResult;
-                    this.FireInfoDialog("Info", "Voucher file successfully processed.", MessageBoxImage.Information);
+                    resultInfoGrid.ItemsSource = resultInfoList;
+                    resultInfoGrid.Columns[0].Header = "Čís.";
+                    resultInfoGrid.Columns[1].Header = "Kód flaše";
+                    resultInfoGrid.Columns[2].Header = "Záloha";
+                    resultInfoGrid.Columns[3].Header = "Podozrivá činnosť";
+                    this.FireInfoDialog("Info", "Nahratý súbor bol úspešne spracovaný. Kliknite Súbor->Uložiť pre uloženie.", MessageBoxImage.Information);
                 }
             }
             catch (Exception)
@@ -109,7 +111,7 @@ namespace Parser
                     return;
                 }
                 SaveFileDialog saveFileDialog = new SaveFileDialog();
-                saveFileDialog.Filter = "Csv files (*.csv)|*.csv";
+                saveFileDialog.Filter = "Csv súbor (*.csv)|*.csv";
                 if (saveFileDialog.ShowDialog() == true)
                 {
                     using (var w = new StreamWriter(saveFileDialog.FileName))
@@ -155,7 +157,7 @@ namespace Parser
                         }
                         */
 
-                        this.FireInfoDialog("Info", "Processed data saved successfully", MessageBoxImage.Information);
+                        this.FireInfoDialog("Info", "Súbor úspešne uložený.", MessageBoxImage.Information);
                     }
                 }
             }
@@ -275,6 +277,17 @@ namespace Parser
                 return true;
             }
         }
+    }
+
+    /// <summary>
+    /// Result line of datagrid
+    /// </summary>
+    public class ResultInfoDataGridLine
+    {
+        public int number { get; set; }
+        public string voucherCode { get; set; }
+        public double ammount { get; set; }
+        public string potentialFraud { get; set; }
     }
 
     public class VoucherRow
